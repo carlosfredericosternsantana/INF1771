@@ -8,13 +8,20 @@
     <li>Felipe Peixoto - 2211750 </li>
 </ul>
 
-<h2>A organização : </h2>
+<h2 style="border : none">A organização : </h2>
 <ul>
     <li>
         Pokemons.md
+        <h4>Descreve nossa abordagem para o problema dos pokemons</h4>
     </li>
     <li>
         Rotas.md
+        <h4>Descreve nossa abordagem para o problema da rota dos ginásios</h4>
     </li>
-    <li> .....</li>
+    <li>
+        program.cpp
+        <h4>Executa todo o cálculo de acordo com nossa modelagem de problema</h4>
+    </li>
 </ul>
+
+
