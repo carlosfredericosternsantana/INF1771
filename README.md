@@ -24,4 +24,5 @@
     </li>
 </ul>
 
-
+use no cmd "g++ rotas.cpp -o rotas.exe "
+e em seguida

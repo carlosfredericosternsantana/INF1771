@@ -12,5 +12,7 @@ em que cada vértice é capaz de avançar para outro qualquer em uma aresta que 
 ![IMAGEM](TSP.png)
 
 Nesse sentido , é muito interessante abordar esse problema de maneira parecida com o problema do caixeiro viajante
-que tem um cenário inicial idêntico , em contrapartida , tem um objetivo final diferente .
-A ideia é usar uma heurística para abordar a "montagem" dos caminhos de maneira a se aproximar do ótimo de maneira análoga ao problema do caixeiro viajante
+que tem um cenário inicial idêntico , em contrapartida , tem um objetivo final diferente . ao invés de tratarmos de um ciclo ao final e de pontos de partidas e chegadas diferentes , temo um ponto de partida e um de entrada fixa e temo que olhar para 
+o caminho que pssa por todos os nodulos tal que resolva os valores o custo de maneira ótima.
+
+A ideia é usar uma heurística para abordar a "montagem" dos caminhos de maneira a se aproximar do ótimo de maneira análoga ao problema do caixeiro viajante. Então usaremos o A* nesse grafo reduzido e não no grafo da matriz completa
