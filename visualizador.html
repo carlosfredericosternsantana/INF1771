@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanto - Visualizador da rota</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #1c1f26; color: #e8eaf0; }
+  header { padding: 10px 16px; background: #14161b; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; }
+  button { background: #3b82f6; color: white; border: 0; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 14px; }
+  button:hover { background: #2563eb; }
+  label { font-size: 13px; }
+  main { display: flex; gap: 16px; padding: 16px; flex-wrap: wrap; align-items: flex-start; }
+  canvas { background: #0b0d11; border: 1px solid #333; max-width: 100%; image-rendering: pixelated; }
+  aside { min-width: 300px; flex: 1; }
+  .painel { background: #14161b; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px; }
+  .painel b { color: #fbbf24; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  td, th { padding: 2px 6px; text-align: left; border-bottom: 1px solid #2a2e38; }
+  tr.feito td { color: #86efac; }
+  tr.alvo td { color: #fbbf24; font-weight: bold; }
+  .legenda span { display: inline-block; width: 12px; height: 12px; margin: 0 4px 0 10px; vertical-align: middle; }
+  #erro { color: #f87171; padding: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kanto - Visualizador da rota</h1>
+  <button id="play">Pausar</button>
+  <button id="reset">Reiniciar</button>
+  <label>Velocidade <input id="vel" type="range" min="1" max="60" value="12"></label>
+  <span class="legenda">
+    <span style="background:#d97706"></span>Montanha
+    <span style="background:#2563eb"></span>Agua
+    <span style="background:#16a34a"></span>Floresta
+    <span style="background:#6b7280"></span>Rochoso
+    <span style="background:#e5e7eb"></span>Livre
+  </span>
+</header>
+<div id="erro" hidden>Nao encontrei resultado.js. Rode primeiro: <code>./program kanto.txt</code> na mesma pasta.</div>
+<main>
+  <canvas id="mapa"></canvas>
+  <aside>
+    <div class="painel" id="status"></div>
+    <div class="painel"><table id="tabela"></table></div>
+  </aside>
+</main>
+<script src="resultado.js" onerror="document.getElementById('erro').hidden=false"></script>
+<script>
+if (typeof RESULTADO !== 'undefined') iniciar(RESULTADO);
+
+function iniciar(R) {
+  const TAM = 8;  // pixels por celula
+  const cv = document.getElementById('mapa');
+  cv.width = R.largura * TAM; cv.height = R.altura * TAM;
+  const ctx = cv.getContext('2d');
+  const cores = { M: '#d97706', A: '#2563eb', F: '#16a34a', R: '#6b7280', '.': '#e5e7eb' };
+  const custo = { M: 200, A: 30, F: 15, R: 5, '.': 1 };
+  const tabela = document.getElementById('tabela');
+  const status = document.getElementById('status');
+  const paradas = R.paradas;  // [{passo, simbolo, dificuldade?, tempo?, pokemon?}] (a primeira e a origem)
+  const posicao = i => [i % R.largura, Math.floor(i / R.largura)];
+
+  let passo = 0, rodando = true, acum = 0, batalhas = 0, prox = 1;
+
+  function montarTabela() {
+    let h = '<tr><th>#</th><th>Ponto</th><th>Dif.</th><th>Pokemon</th><th>Tempo</th></tr>';
+    paradas.forEach((p, i) => {
+      const nome = i === 0 ? 'Origem' : (p.dificuldade === undefined ? 'Destino U' : 'Gym ' + p.simbolo);
+      h += `<tr id="p${i}"><td>${i}</td><td>${nome}</td><td>${p.dificuldade ?? ''}</td>` +
+           `<td>${(p.pokemon || []).join(', ')}</td><td>${p.tempo !== undefined ? p.tempo.toFixed(2) : ''}</td></tr>`;
+    });
+    tabela.innerHTML = h;
+  }
+
+  function desenhar() {
+    for (let y = 0; y < R.altura; y++)
+      for (let x = 0; x < R.largura; x++) {
+        const c = R.mapa[y][x];
+        ctx.fillStyle = cores[c] || '#e5e7eb';
+        ctx.fillRect(x * TAM, y * TAM, TAM, TAM);
+      }
+    // trilha percorrida
+    ctx.fillStyle = '#ef4444';
+    for (let i = 0; i <= passo; i++) {
+      const [x, y] = posicao(R.caminho[i]);
+      ctx.fillRect(x * TAM + 2, y * TAM + 2, TAM - 4, TAM - 4);
+    }
+    // pontos de interesse
+    ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    paradas.forEach((p, i) => {
+      const [x, y] = posicao(R.caminho[p.passo]);
+      const feito = p.passo <= passo, alvo = i === prox;
+      ctx.fillStyle = feito ? '#22c55e' : (alvo ? '#fbbf24' : '#111827');
+      ctx.beginPath(); ctx.arc(x * TAM + TAM / 2, y * TAM + TAM / 2, TAM * 0.9, 0, 6.3); ctx.fill();
+      ctx.fillStyle = feito || alvo ? '#000' : '#fff';
+      ctx.fillText(p.simbolo, x * TAM + TAM / 2, y * TAM + TAM / 2 + 1);
+    });
+    // agente
+    const [ax, ay] = posicao(R.caminho[passo]);
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(ax * TAM + TAM / 2, ay * TAM + TAM / 2, TAM * 0.7, 0, 6.3); ctx.fill(); ctx.stroke();
+  }
+
+  function atualizar() {
+    status.innerHTML =
+      `Passo <b>${passo}</b> / ${R.caminho.length - 1}<br>` +
+      `Custo da rota: <b>${acum}</b> min<br>` +
+      `Custo das batalhas: <b>${batalhas.toFixed(2)}</b> min<br>` +
+      `Custo total: <b>${(acum + batalhas).toFixed(2)}</b> min<br>` +
+      `<small>Final: rota ${R.custoRota} + batalhas ${R.custoBatalhas.toFixed(2)} = ` +
+      `${(R.custoRota + R.custoBatalhas).toFixed(2)} | estados expandidos pelo A*: ${R.expandidos.toLocaleString('pt-BR')}</small>`;
+    paradas.forEach((p, i) => {
+      const tr = document.getElementById('p' + i);
+      tr.className = p.passo <= passo ? 'feito' : (i === prox ? 'alvo' : '');
+    });
+  }
+
+  function avancar() {
+    if (passo >= R.caminho.length - 1) return;
+    passo++;
+    const [x, y] = posicao(R.caminho[passo]);
+    acum += custo[R.mapa[y][x]] ?? 1;  // ginasios, origem e destino custam 1
+    if (prox < paradas.length && paradas[prox].passo === passo) {
+      batalhas += paradas[prox].tempo || 0;
+      prox++;
+    }
+  }
+
+  function reiniciar() {
+    passo = 0; acum = 1; batalhas = 0; prox = 1;  // a origem custa 1
+    desenhar(); atualizar();
+  }
+
+  let ultimo = 0;
+  function laco(t) {
+    const passosPorSeg = +document.getElementById('vel').value * 10;
+    if (rodando && t - ultimo > 1000 / passosPorSeg) { avancar(); desenhar(); atualizar(); ultimo = t; }
+    requestAnimationFrame(laco);
+  }
+
+  document.getElementById('play').onclick = e => { rodando = !rodando; e.target.textContent = rodando ? 'Pausar' : 'Continuar'; };
+  document.getElementById('reset').onclick = reiniciar;
+  montarTabela();
+  reiniciar();
+  requestAnimationFrame(laco);
+}
+</script>
+</body>
+</html>
