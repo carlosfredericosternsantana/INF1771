@@ -59,8 +59,7 @@ struct Mapa {
         nomes.push_back('U'); pos.push_back(pontos['U']);
         d.assign(k+2,vector<Int>(k+2,INF)); pais.resize(k+2);
     }
-    // Dijkstra preserva o custo de entrada das celulas do codigo original.
-    // U nunca pode ser ponto de passagem: a jornada termina ao chegar la.
+    
     void dj(Int origem) {
         vector<Int> dist(altura*largura,INF), pai(altura*largura,-1);
         using Item=pair<Int,Int>;
@@ -108,7 +107,7 @@ struct Heuristica {
         custo_mst[0]=0;
     }
     // Acesso direto O(1). A primeira consulta calcula Prim O(s^2);
-    // as seguintes retornam o valor pronto, sem hashing nem recomputacao.
+    
     Int mst(Mask mask) {
         ++consultas;
         Int& salvo=custo_mst[mask]; if(salvo>=0)return salvo;
@@ -138,8 +137,6 @@ struct Heuristica {
     }
 };
 
-// Tabela hash compacta: a chave e apenas (mascara << 5) | ponto atual.
-// Os custos usam Int; a mascara e uma chave sem sinal, nao um custo.
 struct Melhores {
     vector<Mask> keys;
     vector<Int> valores;
@@ -182,7 +179,7 @@ struct Estado {
 Int custo_ordem(const vector<Int>& o,const Mapa& m) {
     Int total=1;for(size_t i=1;i<o.size();++i)total+=m.d[o[i-1]][o[i]];return total;
 }
-// Uma rota viavel fornece apenas um limite superior; a prova continua sendo A*.
+
 vector<Int> limite_superior(const Mapa& m) {
     mt19937 rng(1771); vector<Int> melhor;
     Int custo=INF;
@@ -201,7 +198,7 @@ vector<Int> limite_superior(const Mapa& m) {
         while(mudou) {
             mudou=false;
             for(Int a=1;a<m.k;++a)for(Int b=a+1;b<=m.k;++b) {
-                // Distancias simetricas: todos os pontos importantes custam 1.
+                
                 Int antes=m.d[ordem[a-1]][ordem[a]]+m.d[ordem[b]][ordem[b+1]];
                 Int depois=m.d[ordem[a-1]][ordem[b]]+m.d[ordem[a]][ordem[b+1]];
                 if(depois<antes){reverse(ordem.begin()+a,ordem.begin()+b+1);mudou=true;}

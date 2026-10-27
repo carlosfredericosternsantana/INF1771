@@ -17,7 +17,6 @@ using Int = int32_t;
 using Mask = uint32_t;
 constexpr Int NP=5, NG=24, ENERGIA=6, PARTICIPACOES=29, ESCALA=10000;
 
-// Poder em ponto fixo: 15000 representa 1.5000, sem erro binario na soma.
 struct Pokemon {string nome; Int poder;};
 struct Ginasio {char nome; Int dificuldade;};
 const array<Pokemon,NP> pokemons={{{"Pikachu",15000},{"Bulbassauro",14000},
@@ -44,16 +43,14 @@ bool valido(const Individuo& x) {
     return soma==PARTICIPACOES&&acordado;
 }
 void avaliar(Individuo& x) {
-    // O argumento de troca de Pokemons.md resolve exatamente o pareamento
-    // para estas equipes: dificuldades e poderes ambos em ordem crescente.
+
     sort(x.equipes.begin(),x.equipes.end(),[](Mask a,Mask b){
         return poder[a]!=poder[b]?poder[a]<poder[b]:a<b;
     });
     x.custo=0;
     for(Int i=0;i<NG;++i)
         x.custo+=static_cast<long double>(ginasios[i].dificuldade)*ESCALA/poder[x.equipes[i]];
-    // Nao arredondar parcelas durante a selecao: isso altera o objetivo.
-    // Poderes tem quatro casas exatas; tempos sao apresentados com quatro.
+   
 }
 Int sorteio(mt19937& rng,Int limite) {
     return uniform_int_distribution<Int>(0,limite-1)(rng);
@@ -62,7 +59,7 @@ Int sorteio(mt19937& rng,Int limite) {
 void reparar(Individuo& x,mt19937& rng) {
     for(Mask& m:x.equipes){m&=31u;if(!m)m=1u<<sorteio(rng,NP);}
     auto n=usos(x);
-    // Elimina sobrecarga sem deixar qualquer ginasio sem participante.
+   
     for(Int p=0;p<NP;++p)while(n[p]>ENERGIA) {
         vector<Int> extras,singles;
         for(Int i=0;i<NG;++i)if(x.equipes[i]&(1u<<p)) {
@@ -108,16 +105,16 @@ void mutar(Individuo& x,mt19937& rng) {
     Int tipo=sorteio(rng,3),a=sorteio(rng,NG),b=sorteio(rng,NG);
     Int p=sorteio(rng,NP),q=sorteio(rng,NP);
     if(tipo==0) {
-        // Substituicao de participante.
+      
         if((x.equipes[a]&(1u<<p))&&!(x.equipes[a]&(1u<<q)))
             x.equipes[a]=(x.equipes[a]&~(1u<<p))|(1u<<q);
     } else if(tipo==1) {
-        // Transfere um reforco para outra equipe.
+     
         if(__builtin_popcount(x.equipes[a])>1&&(x.equipes[a]&(1u<<p))&&!(x.equipes[b]&(1u<<p))) {
             x.equipes[a]&=~(1u<<p);x.equipes[b]|=1u<<p;
         }
     } else {
-        // Troca participantes de duas equipes, preservando o total por Pokemon.
+        
         if((x.equipes[a]&(1u<<p))&&!(x.equipes[a]&(1u<<q))&&
            (x.equipes[b]&(1u<<q))&&!(x.equipes[b]&(1u<<p))) {
             x.equipes[a]^=(1u<<p)|(1u<<q);x.equipes[b]^=(1u<<p)|(1u<<q);
@@ -129,8 +126,7 @@ struct Config {
     uint32_t seed=1771;
     string saida="resultado_pokemons";
 };
-// Welford: media e desvio populacional sobre TODOS os custos observados.
-// Cada individuo conta, inclusive copias preservadas entre geracoes.
+
 struct Estatisticas {
     uint64_t quantidade=0;
     long double media=0,m2=0;
@@ -185,9 +181,7 @@ Individuo genetico(const Config& c,uint32_t seed,ofstream& evolucao,Int rodada,
         }
         pop=move(nova);ordenar();registrar(geracao);
     }
-    // O melhor resultado da rodada so e conhecido depois da busca completa.
-    // Exibe todas as geracoes ate a primeira ocorrencia desse resultado,
-    // evitando centenas de repeticoes do melhor custo no patamar final.
+    
     for(const auto& p:progresso) {
         evolucao<<rodada<<','<<p.geracao<<','<<p.melhor<<','<<p.individuos<<','
             <<p.media<<','<<p.desvio<<','<<p.pior<<'\n';
