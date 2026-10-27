@@ -18,8 +18,12 @@
         <h4>Descreve nossa abordagem para o problema da rota dos ginásios</h4>
     </li>
     <li>
-        program.cpp
-        <h4>Executa todo o cálculo de acordo com nossa modelagem de problema (A*, GA, verificações e saída)</h4>
+        Pokemons.cpp
+        <h4>Executa todo o cálculo de acordo com nossa modelagem de problema (GA)</h4>
+    </li>
+    <li>
+        Rotas.cpp
+        <h4>Executa todo o cálculo de acordo com nossa modelagem de problema (A* e heurística de MST)</h4>
     </li>
     <li>
         kanto.txt
