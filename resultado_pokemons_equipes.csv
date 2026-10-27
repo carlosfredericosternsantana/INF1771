@@ -1,0 +1,25 @@
+ginasio,dificuldade,equipe,mascara,poder,tempo
+2,35,Weedle,16,1.1000,31.8182
+3,40,Caterpie,8,1.2000,33.3333
+4,45,Caterpie,8,1.2000,37.5000
+5,50,Rattata,4,1.3000,38.4615
+6,55,Rattata,4,1.3000,42.3077
+7,60,Rattata,4,1.3000,46.1538
+8,65,Rattata,4,1.3000,50.0000
+9,70,Bulbassauro,2,1.4000,50.0000
+B,75,Bulbassauro,2,1.4000,53.5714
+C,80,Bulbassauro,2,1.4000,57.1429
+D,85,Bulbassauro,2,1.4000,60.7143
+E,90,Bulbassauro,2,1.4000,64.2857
+G,95,Bulbassauro,2,1.4000,67.8571
+H,100,Pikachu,1,1.5000,66.6667
+I,110,Pikachu,1,1.5000,73.3333
+J,120,Pikachu,1,1.5000,80.0000
+K,130,Pikachu,1,1.5000,86.6667
+L,140,Pikachu,1,1.5000,93.3333
+N,150,Pikachu,1,1.5000,100.0000
+O,155,Caterpie + Weedle,24,2.3000,67.3913
+P,160,Caterpie + Weedle,24,2.3000,69.5652
+Q,165,Caterpie + Weedle,24,2.3000,71.7391
+S,170,Rattata + Weedle,20,2.4000,70.8333
+T,180,Rattata + Caterpie,12,2.5000,72.0000
