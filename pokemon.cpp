@@ -129,7 +129,22 @@ struct Config {
     uint32_t seed=1771;
     string saida="resultado_pokemons";
 };
-Individuo genetico(const Config& c,uint32_t seed,ofstream& evolucao,Int rodada) {
+// Welford: media e desvio populacional sobre TODOS os custos observados.
+// Cada individuo conta, inclusive copias preservadas entre geracoes.
+struct Estatisticas {
+    uint64_t quantidade=0;
+    long double media=0,m2=0;
+    void adicionar(long double custo) {
+        ++quantidade;
+        long double delta=custo-media;
+        media+=delta/quantidade;
+        m2+=delta*(custo-media);
+    }
+    long double desvio()const{return quantidade?sqrt(max(0.0L,m2/quantidade)):0;}
+};
+Individuo genetico(const Config& c,uint32_t seed,ofstream& evolucao,Int rodada,
+                  Estatisticas& historico,Estatisticas& finais,
+                  Estatisticas& historico_global,Estatisticas& finais_global) {
     mt19937 rng(seed);vector<Individuo> pop(c.populacao);
     for(auto& x:pop)x=aleatorio(rng);
     auto ordenar=[&](){sort(pop.begin(),pop.end(),[](const auto& a,const auto& b){return a.custo<b.custo;});};
@@ -139,7 +154,21 @@ Individuo genetico(const Config& c,uint32_t seed,ofstream& evolucao,Int rodada) 
         for(Int i=1;i<3;++i){Int j=sorteio(rng,c.populacao);if(pop[j].custo<pop[vencedor].custo)vencedor=j;}
         return pop[vencedor];
     };
-    evolucao<<rodada<<",0,"<<pop[0].custo<<'\n';
+    struct Progresso {
+        Int geracao;
+        long double melhor,media,desvio,pior;
+        uint64_t individuos;
+    };
+    vector<Progresso> progresso;
+    auto registrar=[&](Int geracao) {
+        Estatisticas atual;
+        for(const auto& x:pop) {
+            atual.adicionar(x.custo);historico.adicionar(x.custo);historico_global.adicionar(x.custo);
+            if(geracao==c.geracoes){finais.adicionar(x.custo);finais_global.adicionar(x.custo);}
+        }
+        progresso.push_back({geracao,pop[0].custo,atual.media,atual.desvio(),pop.back().custo,atual.quantidade});
+    };
+    registrar(0);
     for(Int geracao=1;geracao<=c.geracoes;++geracao) {
         vector<Individuo> nova;nova.reserve(c.populacao);
         nova.push_back(pop[0]);nova.push_back(pop[1]); // Elitismo.
@@ -154,7 +183,15 @@ Individuo genetico(const Config& c,uint32_t seed,ofstream& evolucao,Int rodada) 
             }
             reparar(filho,rng);nova.push_back(filho);
         }
-        pop=move(nova);ordenar();evolucao<<rodada<<','<<geracao<<','<<pop[0].custo<<'\n';
+        pop=move(nova);ordenar();registrar(geracao);
+    }
+    // O melhor resultado da rodada so e conhecido depois da busca completa.
+    // Exibe todas as geracoes ate a primeira ocorrencia desse resultado,
+    // evitando centenas de repeticoes do melhor custo no patamar final.
+    for(const auto& p:progresso) {
+        evolucao<<rodada<<','<<p.geracao<<','<<p.melhor<<','<<p.individuos<<','
+            <<p.media<<','<<p.desvio<<','<<p.pior<<'\n';
+        if(p.melhor==pop[0].custo)break;
     }
     return pop[0];
 }
@@ -164,49 +201,6 @@ string nomes(Mask equipe,const string& sep=" + ") {
         s+=pokemons[p].nome;
     }
     return s;
-}
-// Exporta os 24 pareamentos como codigo C++ explicito, inclusive as equipes
-// com um unico Pokemon que foram associadas por ordenacao de poder.
-void exportar_codigo(const Individuo& melhor,const string& arquivo) {
-    ofstream out(arquivo);
-    if(!out)throw runtime_error("Nao foi possivel salvar o pareamento em C++.");
-    out<<"#pragma once\n#include <array>\n#include <cstdint>\n\n"
-        <<"// Gerado por pokemon.cpp. Valores fixos desta execucao do algoritmo genetico.\n"
-        <<"// true = participa; false = nao participa. Todas as 24 batalhas estao listadas.\n"
-        <<"// O pareamento e otimo para estas equipes; nao e prova de otimo global.\n"
-        <<"namespace pareamento_calculado {\n"
-        <<"struct Pokemon { const char* nome; std::int32_t poder_10000; std::int32_t energia_inicial; };\n"
-        <<"inline constexpr std::array<Pokemon, 5> POKEMONS = {{\n";
-    for(const auto& p:pokemons)
-        out<<"    {\""<<p.nome<<"\", "<<p.poder<<", "<<ENERGIA<<"},\n";
-    out<<"}};\n\n"
-        <<"struct Participantes {\n"
-        <<"    bool pikachu;\n    bool bulbassauro;\n    bool rattata;\n    bool caterpie;\n    bool weedle;\n};\n"
-        <<"struct Batalha {\n    char ginasio;\n    std::int32_t dificuldade;\n"
-        <<"    Participantes participantes;\n    std::int32_t poder_10000;\n"
-        <<"    long double tempo_exibido; // Arredondado a quatro casas apenas para exibicao.\n};\n\n"
-        <<"// Participantes na ordem: Pikachu, Bulbassauro, Rattata, Caterpie, Weedle.\n"
-        <<"inline constexpr std::array<Batalha, 24> BATALHAS = {{\n";
-    out<<fixed<<setprecision(4);
-    for(Int i=0;i<NG;++i) {
-        Mask m=melhor.equipes[i];
-        out<<"    {'"<<ginasios[i].nome<<"', "<<ginasios[i].dificuldade<<", {";
-        for(Int p=0;p<NP;++p) {
-            if(p)out<<", ";
-            out<<((m&(1u<<p))?"true":"false");
-        }
-        out<<"}, "<<poder[m]<<", "
-            <<static_cast<long double>(ginasios[i].dificuldade)*ESCALA/poder[m]
-            <<"L}, // "<<nomes(m)<<'\n';
-    }
-    out<<"}};\n\n"
-        <<"// Calcule com dificuldade * 10000.0L / poder_10000 para manter precisao\n"
-        <<"// interna; nao some tempo_exibido para obter o total exato.\n"
-        <<"inline constexpr std::array<std::int32_t, 5> ENERGIA_FINAL = {";
-    auto n=usos(melhor);
-    for(Int p=0;p<NP;++p){if(p)out<<", ";out<<ENERGIA-n[p];}
-    out<<"};\n} // namespace pareamento_calculado\n";
-    if(!out)throw runtime_error("Falha ao gravar o pareamento em C++.");
 }
 int main(int argc,char** argv) {
     try {
@@ -237,21 +231,45 @@ int main(int argc,char** argv) {
         auto inicio=chrono::steady_clock::now();
         ofstream evolucao(c.saida+"_evolucao.csv"),execucoes(c.saida+"_execucoes.csv");
         if(!evolucao||!execucoes)throw runtime_error("Nao foi possivel criar os arquivos de saida.");
-        evolucao<<fixed<<setprecision(4)<<"execucao,geracao,melhor_custo\n";
-        execucoes<<fixed<<setprecision(4)<<"execucao,seed,custo\n";
+        evolucao<<"# LEGENDA - Evolucao da populacao durante a busca genetica.\n"
+            <<"# Cada linha de dados representa uma geracao de uma execucao independente.\n"
+            <<"# execucao: numero da rodada independente do algoritmo genetico.\n"
+            <<"# geracao: etapa da evolucao; 0 e a populacao inicial.\n"
+            <<"# melhor_custo: custo total das batalhas do melhor individuo da geracao.\n"
+            <<"# individuos: quantidade de individuos considerados naquela geracao.\n"
+            <<"# media_populacao: media dos custos de TODOS os individuos daquela geracao.\n"
+            <<"# desvio_padrao_populacao: variacao dos custos entre TODOS os individuos daquela geracao; divisao por N.\n"
+            <<"# pior_custo: custo total das batalhas do pior individuo da geracao.\n"
+            <<"# Custos e desvio-padrao em minutos; valores exibidos com quatro casas decimais.\n"
+            <<"# O registro vai da geracao 0 ate a primeira que atingiu o melhor resultado final da rodada.\n"
+            <<"# A busca continua por todas as geracoes configuradas; o patamar posterior e omitido neste CSV.\n"
+            <<"# Este arquivo mostra a progressao; resultado_pokemons_execucoes.csv resume cada rodada completa.\n"
+            <<"# Ao ler como tabela: ignore as linhas que comecam com #; o cabecalho esta abaixo.\n"
+            <<fixed<<setprecision(4)<<"execucao,geracao,melhor_custo,individuos,media_populacao,desvio_padrao_populacao,pior_custo\n";
+        execucoes<<fixed<<setprecision(4)<<"execucao,seed,custo,individuos_historico,media_historico,desvio_padrao_historico,individuos_populacao_final,media_populacao_final,desvio_padrao_populacao_final\n";
         Individuo melhor;melhor.custo=numeric_limits<long double>::infinity();
         vector<long double> custos;
+        Estatisticas historico_global,finais_global;
         for(Int r=0;r<c.execucoes;++r) {
             uint32_t seed=c.seed+static_cast<uint32_t>(r);
-            auto x=genetico(c,seed,evolucao,r+1);
+            Estatisticas historico,finais;
+            auto x=genetico(c,seed,evolucao,r+1,historico,finais,historico_global,finais_global);
             if(!valido(x))throw runtime_error("Validacao final falhou.");
             custos.push_back(x.custo);if(x.custo<melhor.custo)melhor=x;
-            execucoes<<r+1<<','<<seed<<','<<x.custo<<'\n';
+            execucoes<<r+1<<','<<seed<<','<<x.custo<<','<<historico.quantidade<<','
+                <<historico.media<<','<<historico.desvio()<<','<<finais.quantidade<<','
+                <<finais.media<<','<<finais.desvio()<<'\n';
             cerr<<fixed<<setprecision(4)<<"Execucao "<<r+1<<'/'<<c.execucoes<<": "<<x.custo<<'\n';
         }
         long double media=accumulate(custos.begin(),custos.end(),0.0L)/c.execucoes,variancia=0;
         for(auto v:custos)variancia+=(v-media)*(v-media);
         long double desvio=sqrt(variancia/c.execucoes); // Desvio populacional das execucoes.
+        ofstream estatisticas(c.saida+"_estatisticas.csv");
+        if(!estatisticas)throw runtime_error("Nao foi possivel salvar as estatisticas.");
+        estatisticas<<fixed<<setprecision(4)<<"grupo,quantidade,media_custo,desvio_padrao_populacional\n"
+            <<"todos_individuos_todas_geracoes,"<<historico_global.quantidade<<','<<historico_global.media<<','<<historico_global.desvio()<<'\n'
+            <<"todos_individuos_populacoes_finais,"<<finais_global.quantidade<<','<<finais_global.media<<','<<finais_global.desvio()<<'\n'
+            <<"melhor_individuo_por_execucao,"<<c.execucoes<<','<<media<<','<<desvio<<'\n';
         auto n=usos(melhor);
         ofstream txt(c.saida+".txt"),csv(c.saida+"_equipes.csv");
         if(!txt||!csv)throw runtime_error("Nao foi possivel salvar o resultado.");
@@ -275,10 +293,15 @@ int main(int argc,char** argv) {
             out<<"\nParticipacoes: "<<accumulate(n.begin(),n.end(),Int(0))
                 <<"\nCusto total das batalhas: "<<melhor.custo<<"\nExecucoes: "<<c.execucoes
                 <<"\nPopulacao: "<<c.populacao<<"\nGeracoes: "<<c.geracoes<<"\nSeed inicial: "<<c.seed
-                <<"\nMedia: "<<media<<"\nDesvio-padrao populacional: "<<desvio
+                <<"\nMedia dos melhores por execucao: "<<media<<"\nDesvio dos melhores por execucao: "<<desvio
+                <<"\nIndividuos em todas as geracoes (inclui repeticoes): "<<historico_global.quantidade
+                <<"\nMedia de todos os individuos: "<<historico_global.media
+                <<"\nDesvio-padrao de todos os individuos: "<<historico_global.desvio()
+                <<"\nIndividuos nas populacoes finais: "<<finais_global.quantidade
+                <<"\nMedia das populacoes finais: "<<finais_global.media
+                <<"\nDesvio-padrao das populacoes finais: "<<finais_global.desvio()
                 <<"\nTempo total (s): "<<chrono::duration<double>(chrono::steady_clock::now()-inicio).count()<<'\n';
         };
-        exportar_codigo(melhor,c.saida+".hpp");
         relatar(cout);relatar(txt);return 0;
     } catch(const exception& e){cerr<<"Erro: "<<e.what()<<'\n';return 1;}
 }

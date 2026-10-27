@@ -4,7 +4,7 @@
 <ul>
     <li>Carlos Frederico Stern Sant'ana - 2511920</li>
     <li>Luis Felipe Gadelha - 2210308</li>
-    <li>Felipe Peixoto - 2211750 </li>
+    <li>Felipe Peixoto - 2211750</li>
 </ul>
 
 <h2 style="border : none">A organização : </h2>
@@ -27,20 +27,26 @@
     </li>
     <li>
         resultado_pokemons_equipes.csv
-        <h4>pareamento final dos pokemons</h4>
+        <h4>pareamento final dos pokemons. Mostra o ginásio, os participantes, o poder conjunto e o tempo de cada batalha.</h4>
     </li>
     <li>
         resultado_pokemons_evolução
-        <h4>melhor custo por geração de pokemons</h4>
+        <h4>melhor custo por geração de pokemons. Inclui média e desvio-padrão dos custos de todos os indivíduos da geração, até a primeira ocorrência do melhor resultado final de cada execução.</h4>
     </li>
     <li>
         vresultado_rotas_caminho.csv
-        <h4>Caminhos</h4>
+        <h4>Caminhos. Cada linha representa uma célula percorrida e seu custo acumulado de deslocamento, sem incluir batalhas.</h4>
     </li>
     <li>
         visualizador.cpp
-        <h4>Interface gráfica em console </h4>
+        <h4>Interface gráfica em console. A cada Enter, mostra o próximo ginásio, os Pokémon usados, a energia restante e os custos.</h4>
+    </li>
+    <li>
+        resultado_pokemons_execucoes.csv
+        <h4>Resultado de cada execução completa: semente, melhor custo e estatísticas dos indivíduos. O padrão é de 30 execuções com 120 indivíduos e 600 gerações.</h4>
+    </li>
+    <li>
+        resultado_pokemons_estatisticas.csv
+        <h4>Resumo da quantidade, média e desvio-padrão de todos os indivíduos, das populações finais e dos melhores por execução. Inclui indivíduos repetidos; custos em minutos.</h4>
     </li>
 </ul>
-
-
